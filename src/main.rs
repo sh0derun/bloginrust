@@ -1,5 +1,6 @@
 use std::io::{Read, Write};
 use std::net::TcpListener;
+use std::fs::{File};
 
 struct Method;
 impl Method{
@@ -46,7 +47,7 @@ impl Request {
         };
     }
 
-    fn handle_request(&self) {
+    fn handle_request(&self, mut responce: &Response) {
         //TODO: better way ?
         match self.method.as_ref() {
             Method::GET => {
@@ -81,10 +82,18 @@ impl Response{
     fn build_response(){
         //TODO
     }
+
+    fn load_content(file_path: &str) -> String{
+        let mut file = File::open(file_path).expect(&format!("cannot open file {}",file_path));
+        let mut content = String::new();
+        file.read_to_string(&mut content).expect("cannot read from the file !");
+        return content;
+    }
 }
 
 fn main() {
     let server_lstnr = TcpListener::bind("0.0.0.0:80").unwrap();
+
     loop {
         match server_lstnr.accept() {
             Ok((mut client, address)) => {
@@ -101,10 +110,19 @@ fn main() {
                                 </html>";
 
                 let mut req_buf = [0u8; 1024 * 4];
+                
+                let response = Response{
+                    http_version: "HTTP/1.1".to_string(),
+                    content_type: "text/html".to_string(),
+                    content:      Response::load_content("./public/index.html"),
+                    status_code: StatusCode::OK.0,
+                    status_name: StatusCode::OK.1.to_string()
+                };
+                
                 match client.read(&mut req_buf) {
                     Ok(_) => {
                         let request: Request = Request::parse_request(String::from_utf8_lossy(&req_buf).to_string());
-                        request.handle_request();
+                        request.handle_request(&response);
                     }
                     Err(e) => println!("Failed receiving request: {}", e),
                 }
